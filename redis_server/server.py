@@ -62,7 +62,7 @@ class RedisServer:
         parts = command_line.strip().split()
         if not  parts:
             return error("empty command")
-        return self.command_handler.execute(parts[0]*parts[1:])
+        return self.command_handler.execute(parts[0],*parts[1:])
     def  _disconnect_client(self, client):
         client.close()
         self.clients.pop(client,None)
