@@ -10,7 +10,7 @@ def bulk_string(value):
     if value in None:
         return null_bulk_string()
     return f"$len{value}\r\n{value}\r\n".encode()
-def error(message):
+def errorm(message):
     return f"-ERR {message}\r\n".encode()
 def integar(value):
     return f":{value}\r\n".encode()

@@ -2,9 +2,10 @@ import socket
 import select
 from .command import CommandHandler
 from .storage import DataStore
+import time
 
 class RedisServer:
-    def __init__(self, host ='localhost', port = 63379):
+    def __init__(self, host ='localhost', port = 6379):
         self.host = host
         self.port = port
         self.running = False
@@ -12,6 +13,8 @@ class RedisServer:
         self.clients = {}
         self.storage = DataStore()
         self.command_handler = CommandHandler(self.storage)
+        self.last_cleanup_time = time.time()
+        self.cleanup_interval = 0.1
         
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,26 +23,36 @@ class RedisServer:
         self.server_socket.listen()
         self.server_socket.setblocking(False)
         self.running = True
-        print(f"Redis-style server listening on{self.host} : {self.port}")
+        print(f"Redis-style server listening on {self.host} : {self.port}")
         self._event_loop()
+        
     def _event_loop(self):
         while self.running:
             try:
-                read, _, _ = select.select([self.server] + list(self.clients.keys()),[],[],1.0)
+                read, _, _ = select.select([self.server] + list(self.clients.keys()),[],[], 0.5)
                 for sock  in read:
                     if sock is self.server_socket:
                         self._accept_client()
                     else:
                         self._handle_client()
+                current_time = time.time()
+                if current_time - self.last_cleanup_time >= self.cleanup_interval:
+                     self._background_cleanup()
+                     self.last_cleanup_time = current_time
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 print(f"Event loop error: {e}")
+                
     def _accept_client(self):
-        client,  addr = self.server_socket.accept()
-        client.setblocking(False)
-        self.clients[client] = {"addr" : addr, "buffer" : b""}
-        client.send(b"+OK\r\n")
+        try:
+         client,  addr = self.server_socket.accept()
+         client.setblocking(False)
+         self.clients[client] = {"addr" : addr, "buffer" : b""}
+         print(f"Client Connected from {addr}")
+        except Exception as e:
+            print(f"error connecting client: {e}")
+            
     def _handle_client(self, client):
         try :
             data  = client.recv(4096)
@@ -50,27 +63,51 @@ class RedisServer:
             self.process_buffer(client)
         except ConnectionError:
             self._disconnect_client(client)
+        except Exception as e:
+            print(f"Error handling client: {e}")
+            self._disconnect_client(client)
+            
     def  process_buffer(self,client):
         buffer = self.clients[client]["buffer"]
         while b"\r\n" in buffer:
             command, buffer = buffer.split(b"\r\n",1)
             if command:
-                response = self.process_command(command.decode())
-                client.send(response)
+                try:
+                  response = self.process_command(command.decode())
+                  client.send(response)
+                except Exception as e:
+                    print(f"Error proccessing command: {e}")
+                    error_response = f"-ERR  {str(e)}\r\n".encode()
+                    client.send(error_response)
         self.clients[client]["buffer"] = buffer
+        
+    def _background_cleanup(self):
+        try:
+          expired_count = self.storage.cleanup_expired_keys()
+          if expired_count > 0:
+              print(f"Cleaned up {expired_count} expired keys")
+        except Exception as e:
+              print(f"error during background cleanup: {e}")
+              
     def process_command(self,command_line):
         parts = command_line.strip().split()
         if not  parts:
-            return error("empty command")
+            return b"-ERR empty command\r\n"
         return self.command_handler.execute(parts[0],*parts[1:])
     def  _disconnect_client(self, client):
-        client.close()
-        self.clients.pop(client,None)
+        try: 
+          addr = self.clients.get(client,{}).get("addr","unknown")
+          print(f"Client {addr} disconnected ")
+          client.close()
+          self.clients.pop(client,None)
+        except Exception as e:
+            print(f"Error disconnecting client: {e}")
+            
     def stop(self):
         self.running = False
         for client in self.clients.keys():
             self._disconnect_client(client)
         if self.server_socket:
          self.server_socket.close()
-    
+        print("Server Stopped")
         
