@@ -9,7 +9,7 @@ class DataStore:
        if key in  self._data:
            old_value,_,_ = self._data[key]
            self._memory_usage -= self._calculate_memory_usage(key,old_value)
-       data_type = self._get_data_type(value)
+       data_type = self._get_type(value)
        self._data[key] =(value, data_type, expiry_time)
        self._memory_usage += self._calculate_memory_usage(key,value)
         
@@ -31,7 +31,7 @@ class DataStore:
     def exists(self, *keys):
        return sum(1 for key in keys if  key in self._is_key_valid(key))
     def keys(self, pattern ="*"):
-        valid_keys = [key for key in self._data if self.is_key_valid(key)]
+        valid_keys = [key for key in self._data if self._is_key_valid(key)]
         if pattern == "*":
          return valid_keys
         return [key for key in valid_keys if  fnmatch.fnmatch(key,pattern) ]

@@ -3,23 +3,44 @@ import select
 from .command import CommandHandler
 from .storage import DataStore
 import time
-
+from .persistence  import PersistenceManager, PersistenceConfig
 class RedisServer:
-    def __init__(self, host ='localhost', port = 6379):
+    def __init__(self, host ='localhost', port = 6379, persistence_config = None):
         self.host = host
         self.port = port
         self.running = False
         self.server_socket = None
         self.clients = {}
         self.storage = DataStore()
-        self.command_handler = CommandHandler(self.storage)
         self.last_cleanup_time = time.time()
-        self.cleanup_interval = 0.1
+        self.cleanup_interval = 0.1 #100ms cleanup interval
+        
+        #initilaize Persistence
+        
+        self.persistence_config = persistence_config or PersistenceConfig()
+        self.persistence_manager = PersistenceManager(self.persistence_config)
+        
+        #Command handler needs referecne to Persistence manager for logging
+        
+        self.command_handler = CommandHandler(self.storage, self.persistence_manager)
+        self.last_persistence_time = time.time()
+        self.persistence_interval = 0.1 #100ms persistence interval
         
     def start(self):
+        """"start persistence"""
+        self.persistence_manager.start()
+        print("Recovering data from persistence files")
+        recovery_success = self.persistence_manager.recover_data(self.storage, self.command_handler)
+        
+        if recovery_success:
+            print("Data recovery completed successfully")
+            
+        else:
+            print("Data reocvery failed, starting with an empty database")
+        
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        self.server_socket.bind(self.host, self.port)
+        self.server_socket.bind((self.host, self.port))
         self.server_socket.listen()
         self.server_socket.setblocking(False)
         self.running = True
@@ -29,20 +50,33 @@ class RedisServer:
     def _event_loop(self):
         while self.running:
             try:
-                read, _, _ = select.select([self.server] + list(self.clients.keys()),[],[], 0.5)
+                read, _, _ = select.select([self.server_socket] + list(self.clients.keys()), [], [], 0.5)
                 for sock  in read:
                     if sock is self.server_socket:
                         self._accept_client()
                     else:
                         self._handle_client()
                 current_time = time.time()
+                
+                #Background cleanup every 100ms
                 if current_time - self.last_cleanup_time >= self.cleanup_interval:
                      self._background_cleanup()
                      self.last_cleanup_time = current_time
+                     
+                #Persistence tasks every 100ms
+                if current_time - self.last_persistence_time >= self.persistence_interval:
+                    self._background_persistence_task()
+                    self.last_persistence_time = current_time
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 print(f"Event loop error: {e}")
+                
+    def _background_persistence_task(self):
+        try:
+            self.persistence_manager.periodic_tasks()
+        except Exception as e:
+            print(f"Error during persistence task: {e}")
                 
     def _accept_client(self):
         try:
@@ -105,6 +139,11 @@ class RedisServer:
             
     def stop(self):
         self.running = False
+        try:
+            self.persistence_manager.stop()
+        except Exception as e:
+            print(f"Error stopping persistence: {e}")
+        
         for client in self.clients.keys():
             self._disconnect_client(client)
         if self.server_socket:
