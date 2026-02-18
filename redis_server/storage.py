@@ -29,7 +29,7 @@ class DataStore:
                 count += 1
         return count
     def exists(self, *keys):
-       return sum(1 for key in keys if  key in self._is_key_valid(key))
+       return sum(1 for key in keys if self._is_key_valid(key))
     def keys(self, pattern ="*"):
         valid_keys = [key for key in self._data if self._is_key_valid(key)]
         if pattern == "*":
@@ -45,13 +45,13 @@ class DataStore:
            return False
         value, data_type, _ = self._data[key]
         expiry_time = time.time() + seconds
-        self._data =  (value,data_type,expiry_time)
+        self._data[key] =  (value,data_type,expiry_time)
         return True
     def expire_at(self, key, timestamp):
         if not self._is_key_valid(key):
            return False
         value, data_type, _ = self._data[key]
-        self._data =  (value,data_type, timestamp)
+        self._data[key] =  (value,data_type, timestamp)
         return True
         
     def _calculate_memory_usage(self,key, value):
@@ -129,7 +129,7 @@ class DataStore:
         
         for key in sample_keys:
             value,_, expiry_time = self._data[key]
-            if key is not None and expiry_time <= time.time():
+            if expiry_time is not None and expiry_time <= time.time():
                 self._memory_usage -= self._calculate_memory_usage(key,value)
                 expired_keys_number += 1
                 del self._data[key]

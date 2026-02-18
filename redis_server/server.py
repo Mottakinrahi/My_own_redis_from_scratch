@@ -55,7 +55,7 @@ class RedisServer:
                     if sock is self.server_socket:
                         self._accept_client()
                     else:
-                        self._handle_client()
+                        self._handle_client(sock)
                 current_time = time.time()
                 
                 #Background cleanup every 100ms

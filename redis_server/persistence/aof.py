@@ -89,7 +89,7 @@ class AOFWriter:
             if self.sync_policy == 'always':
                 return False #Already synced during log
             elif self.sync_policy == 'everysec':
-                return self.time() - self.last_sync_time >= 1.0
+                return time.time() - self.last_sync_time >= 1.0
             else:
                 return False # os based sync
     def rewrite_aof(self,  data_store, temp_filename: str) -> bool:

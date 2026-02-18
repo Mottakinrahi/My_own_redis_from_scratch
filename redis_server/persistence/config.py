@@ -41,7 +41,7 @@ class   PersistenceConfig:
     
     def  _validate_config(self) -> None: 
         
-      valid_sync_policies = ['always', 'everysecond', 'no']
+      valid_sync_policies = ['always', 'everysec', 'no']
       if self._config['aof_sync_policy'] not in valid_sync_policies:
           raise ValueError("Invalid sync policy. Must be one of {valid_sync_policies}") 
              
@@ -77,7 +77,7 @@ class   PersistenceConfig:
     @property 
     def data_dir(self) ->   str:
         return self._config['data_dir']
-    
+    @property
     def temp_dir(self) -> str:
         return self._config['temp_dir']
     
