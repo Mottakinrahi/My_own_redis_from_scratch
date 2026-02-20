@@ -1,19 +1,29 @@
 # Redis from Scratch: AOF Persistence Implementation
 
-A high-performance, asynchronous Redis-like key-value store built in Python. This project focuses on **Append-Only File (AOF)** persistence, providing strong durability by journaling every write operation to disk.
+A lightweight, high-performance Redis clone built in Python. This project implements the **Append-Only File (AOF)** persistence mechanism, providing high data durability by logging every write operation to a journal-like file.
+
+## 🚀 Key Features
+- **In-Memory Data Store:** Fast key-value storage with support for Strings and TTL (Time-to-Live).
+- **AOF Logging:** Every write command (SET, DEL, EXPIRE) is recorded in a human-readable format.
+- **Configurable Fsync Policies:**
+  - `always`: Maximum durability (sync every command).
+  - `everysec`: Balance of speed and safety (default).
+  - `no`: Maximum performance (OS handles syncing).
+- **AOF Rewriting (Compaction):** Supports `BGREWRITEAOF` to reduce file size by removing redundant commands.
+- **Automatic Recovery:** Replays logs on startup to restore the exact state of the database.
 
 ## 🏗️ System Architecture
-The implementation follows a modular design, separating the network layer from the persistence engine to ensure non-blocking operations.
+The system is built with a non-blocking, event-driven architecture using Python's `select` module.
 
 
 
-### Key Components:
-- **RedisServer**: Manages TCP sockets and the `select()`-based event loop.
-- **AOFWriter**: Handles logging and synchronization based on `always`, `everysec`, or `no` policies.
-- **RecoveryManager**: Replays the AOF log on startup to reconstruct the dataset.
-- **Background Rewriter**: Compacts large AOF files by removing redundant commands via `BGREWRITEAOF`.
+### Component Roles:
+- **RedisServer:** Handles the network layer and event loop.
+- **PersistenceManager:** Coordinates AOF writing and background tasks.
+- **AOFWriter:** Manages the physical file I/O and synchronization policies.
+- **RecoveryManager:** Reconstructs the dataset from the AOF log during boot.
 
-## 🛠️ Installation & Setup
+## 🛠️ Installation & Usage
 
 To get the server running on your local machine, follow these steps:
 
