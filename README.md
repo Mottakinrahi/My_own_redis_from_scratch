@@ -1,17 +1,16 @@
-# Redis Clone – In-Memory Database with TTL & AOF (Built from Scratch in Python)
+# Redis Clone – In-Memory Database with TTL, AOF & Redis-Compatible Responses (Built from Scratch in Python)
 
-A Redis-inspired in-memory key-value database built from scratch in Python.
+A Redis-inspired in-memory key-value database built entirely from scratch in Python.
 
-This project implements Redis-style TTL (Time-To-Live) expiration strategies and durable persistence using an Append-Only File (AOF) mechanism — all within a single-threaded, non-blocking event loop architecture.
+This project replicates core internal behaviors of real Redis, including:
 
-The goal of this project is to deeply understand how real-world systems like Redis manage:
+- In-memory storage engine
+- TTL with hybrid expiration (lazy + active)
+- Append-Only File (AOF) persistence
+- Background cleanup tasks
+- Redis-compatible response formatting (RESP-style protocol)
 
-- In-memory storage
-- Key expiration strategies
-- Background task scheduling
-- Event-driven network servers
-- Durable persistence via command logging
-- Crash recovery and AOF rewriting
+The goal is to deeply understand how systems like Redis operate internally — from networking to memory management and durable logging.
 
 ---
 
@@ -20,8 +19,8 @@ The goal of this project is to deeply understand how real-world systems like Red
 ### 🔹 In-Memory Storage Engine
 - O(1) key-value operations
 - Type-aware storage
-- Memory usage tracking
-- Efficient metadata management
+- Expiration metadata embedded with keys
+- Real-time memory usage tracking
 
 ### 🔹 TTL (Time-To-Live) Support
 - `EXPIRE`
@@ -35,17 +34,46 @@ The goal of this project is to deeply understand how real-world systems like Red
 Implements Redis-style expiration:
 
 1. **Lazy Expiration**
-   - Keys checked on access
-   - Expired keys deleted immediately
+   - Keys validated on access
+   - Expired keys removed immediately
 
-2. **Active Expiration (Background Cleanup)**
-   - Runs periodically in event loop
-   - Probabilistic sampling (max 20 keys per cycle)
-   - Prevents memory leaks from unused expired keys
+2. **Active Expiration**
+   - Background cleanup every 100ms
+   - Probabilistic key sampling (Redis-style)
+   - Prevents memory leaks from inactive expired keys
+
+### 🔹 Redis-Compatible Responses (RESP-like)
+
+The server formats responses similar to real Redis using RESP-style output:
+
+Examples:
+
+```text
++PONG
+```
+
+```text
+$5
+hello
+```
+
+```text
+:1
+```
+
+```text
+-ERR unknown command
+```
+
+This makes the server behavior closely resemble real 
+:contentReference[oaicite:0]{index=0}
+response patterns.
+
+---
 
 ### 🔹 AOF (Append-Only File) Persistence
 - Logs every write operation
-- Human-readable log format
+- Human-readable format with timestamps
 - Crash-safe recovery
 - Configurable fsync policies:
   - `always`
@@ -53,36 +81,32 @@ Implements Redis-style expiration:
   - `no`
 - Background AOF rewriting (`BGREWRITEAOF`)
 - Atomic file replacement
-- Full dataset recovery on restart
-
-### 🔹 Event-Driven Server Architecture
-- Single-threaded `select()` based event loop
-- Non-blocking I/O
-- Background task integration
-- Clean modular design:
-  - RedisServer
-  - CommandHandler
-  - DataStore
-  - PersistenceManager
-  - AOFWriter
-  - RecoveryManager
+- Full dataset reconstruction on restart
 
 ---
 
 # 🏗 Architecture Overview
 
-The system follows a single-threaded event loop model:
+Single-threaded event loop architecture:
 
-1. Network I/O (via `select`)
-2. Client request processing
-3. Background TTL cleanup (every 100ms)
+1. Network I/O (`select`)
+2. Client request handling
+3. Background TTL cleanup
 4. Persistence sync tasks
 
-This ensures:
-- High throughput
+Modular components:
+
+- RedisServer (network + event loop)
+- CommandHandler (command routing)
+- DataStore (storage + TTL logic)
+- PersistenceManager (AOF coordination)
+- AOFWriter (disk logging)
+- RecoveryManager (startup replay)
+
+This design ensures:
 - Non-blocking behavior
-- Efficient background processing
 - Clean separation of concerns
+- High throughput under single-threaded model
 
 ---
 
@@ -97,19 +121,17 @@ cd My_own_redis_from_scratch
 
 ## 🔹 Run the Server
 
-Make sure Python 3.9+ is installed.
+Ensure Python 3.9+ is installed.
 
 ```bash
 python3 main.py
 ```
 
-The server will start on:
+Server starts on:
 
 ```text
 localhost:6379
 ```
-
-(Default Redis port)
 
 ---
 
@@ -121,67 +143,35 @@ Open another terminal:
 telnet localhost 6379
 ```
 
-Now you can interact with the server.
+Now interact using Redis-style commands.
 
 ---
 
-# 🧪 Supported Commands
+# 🧪 Example Commands
 
-## Basic Commands
+## Basic Operations
 
 ```text
 PING
-ECHO hello
-SET key value
-GET key
-DEL key
-EXISTS key
-KEYS *
-FLUSHALL
-TYPE key
-INFO
+SET name Mottakin
+GET name
+DEL name
+EXISTS name
 ```
 
 ## TTL Commands
 
 ```text
-SET temp value EX 10
-EXPIRE key 30
-EXPIREAT key 1691234567
-TTL key
-PTTL key
-PERSIST key
+SET session abc EX 10
+TTL session
+PERSIST session
 ```
 
----
-
-# 🔁 AOF Persistence
-
-## How It Works
-
-For every write operation:
-
-1. Command executes in memory
-2. Command is formatted
-3. Appended to AOF buffer
-4. Synced to disk based on policy
-
-On restart:
-- AOF file is replayed
-- Dataset reconstructed
-- TTL metadata restored
-
----
-
-## 🔄 AOF Rewriting
-
-To compact the AOF file:
+## AOF Rewrite
 
 ```text
 BGREWRITEAOF
 ```
-
-Removes redundant commands and rewrites minimal dataset snapshot.
 
 ---
 
@@ -197,45 +187,19 @@ Removes redundant commands and rewrites minimal dataset snapshot.
 
 ---
 
-# 🧠 Technical Highlights
+# 🎯 Project Objective
 
-- Redis-style hybrid expiration model
-- Probabilistic cleanup algorithm
-- Memory accounting system
-- Atomic file replacement for safe AOF rewriting
-- Recovery mechanism with corruption handling
-- Modular persistence layer
-- Non-blocking event loop architecture
+This project demonstrates:
 
----
-
-# 📌 Future Improvements
-
-- RDB Snapshot support
-- RESP protocol full compliance
-- Replication support
-- Thread pool / multi-core scaling
-- Configurable eviction policies (LRU/LFU)
-- Benchmark suite
-
----
-
-# 🎯 Project Goal
-
-This project is a deep systems-level implementation designed to understand:
-
-- How Redis manages memory efficiently
-- How TTL expiration works internally
-- How durable logging ensures crash recovery
-- How event-driven servers are structured
-- How real-world in-memory databases are built
+- Internal mechanics of Redis-style expiration
+- Durable logging via AOF
+- Event-driven server design
+- RESP-style protocol formatting
+- Recovery and file compaction strategies
+- Systems-level backend engineering concepts
 
 ---
 
 # 📜 License
 
 MIT License
-
----
-
-If you find this project useful, feel free to star the repository ⭐
