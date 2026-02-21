@@ -48,26 +48,107 @@ The server formats responses similar to real Redis using RESP-style output:
 
 Examples:
 
+**PING**
+
+```text
+PING
+```
+
+Response:
+
 ```text
 +PONG
 ```
+
+---
+
+**ECHO hello**
+
+```text
+ECHO hello
+```
+
+Response:
 
 ```text
 $5
 hello
 ```
 
+---
+
+**SET name Mottakin**
+
+```text
+SET name Mottakin
+```
+
+Response:
+
+```text
++OK
+```
+
+---
+
+**GET name**
+
+```text
+GET name
+```
+
+Response:
+
+```text
+$8
+Mottakin
+```
+
+---
+
+**GET unknown**
+
+```text
+GET unknown
+```
+
+Response:
+
+```text
+$-1
+```
+
+---
+
+**EXISTS name**
+
+```text
+EXISTS name
+```
+
+Response:
+
 ```text
 :1
 ```
+
+---
+
+**Unknown Command**
+
+```text
+RANDOMCMD
+```
+
+Response:
 
 ```text
 -ERR unknown command
 ```
 
-This makes the server behavior closely resemble real 
-:contentReference[oaicite:0]{index=0}
-response patterns.
+---
+
+This makes the server behavior closely resemble real Redis response patterns.
 
 ---
 
